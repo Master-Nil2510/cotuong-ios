@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cờ Tướng iOS</title>
+    <!-- Cấu hình để chạy như App độc lập trên iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cờ Tướng">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #f7f3e9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+        h2 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 20px;
+        }
+        #game-container {
+            position: relative;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #e6b87d;
+        }
+        canvas {
+            display: block;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>CỜ TƯỚNG DI ĐỘNG</h2>
+    <div id="game-container">
+        <canvas id="chessBoard" width="360" height="400"></canvas>
+    </div>
+    <div class="status" id="statusText">Lượt đi: Quân Đỏ</div>
+
+    <script>
+        const canvas = document.getElementById("chessBoard");
+        const ctx = canvas.getContext("2d");
+
+        // Kích thước bàn cờ trên mobile
+        const CELL_SIZE = 38;
+        const OFFSET_X = 22;
+        const OFFSET_Y = 25;
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#e6b87d";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = "#4a2810";
+            ctx.lineWidth = 1.5;
+
+            // Vẽ 10 đường ngang
+            for (let i = 0; i < 10; i++) {
+                ctx.beginPath();
+                ctx.moveTo(OFFSET_X, OFFSET_Y + i * CELL_SIZE);
+                ctx.lineTo(OFFSET_X + 8 * CELL_SIZE, OFFSET_Y + i * CELL_SIZE);
+                ctx.stroke();
+            }
+
+            // Vẽ 9 đường dọc
+            for (let j = 0; j < 9; j++) {
+                ctx.beginPath();
+                if (j === 0 || j === 8) {
+                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y);
+                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+                } else {
+                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y);
+                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 4 * CELL_SIZE);
+                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 5 * CELL_SIZE);
+                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+                }
+                ctx.stroke();
+            }
+
+            // Kẻ sông (Sở Hà - Hán Giới)
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = "#4a2810";
+            ctx.textAlign = "center";
+            ctx.fillText("SỞ HÀ", OFFSET_X + 2 * CELL_SIZE, OFFSET_Y + 4.65 * CELL_SIZE);
+            ctx.fillText("HÁN GIỚI", OFFSET_X + 6 * CELL_SIZE, OFFSET_Y + 4.65 * CELL_SIZE);
+
+            // Vẽ Cung Tướng (Chéo)
+            // Cung trên (Đen)
+            ctx.beginPath();
+            ctx.moveTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y);
+            ctx.lineTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 2 * CELL_SIZE);
+            ctx.moveTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y);
+            ctx.lineTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 2 * CELL_SIZE);
+            // Cung dưới (Đỏ)
+            ctx.moveTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 7 * CELL_SIZE);
+            ctx.lineTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+            ctx.moveTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 7 * CELL_SIZE);
+            ctx.lineTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+            ctx.stroke();
+        }
+
+        drawBoard();
+
+        // Xử lý sự kiện chạm màn hình trên iOS
+        canvas.addEventListener("touchstart", function(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // Chuyển tọa độ chạm sang ô bàn cờ (0-8 cột, 0-9 hàng)
+            let col = Math.round((x - OFFSET_X) / CELL_SIZE);
+            let row = Math.round((y - OFFSET_Y) / CELL_SIZE);
+
+            if (col >= 0 && col <= 8 && row >= 0 && row <= 9) {
+                document.getElementById("statusText").innerText = `Đã chọn ô: Cột ${col + 1}, Hàng ${row + 1}`;
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
