@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cờ Tướng iOS - Đấu với Máy</title>
+    <title>Cờ Tướng iOS - 3D Đấu với Máy</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Cờ Tướng">
@@ -13,7 +13,7 @@
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background-color: #f7f3e9;
+            background: linear-gradient(135deg, #f7f3e9 0%, #e6d5b8 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -25,8 +25,9 @@
         }
         h2 {
             margin-bottom: 6px;
-            color: #333;
-            font-size: 18px;
+            color: #2c2c2c;
+            font-size: 19px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         .controls {
             display: flex;
@@ -39,11 +40,10 @@
             font-size: 13px;
             font-weight: bold;
             border-radius: 6px;
-            border: 1px solid #ccc;
+            border: 1px solid #b59b70;
             cursor: pointer;
-        }
-        select {
             background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         button {
             background-color: #b22222;
@@ -55,29 +55,31 @@
         }
         #game-container {
             position: relative;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-            border-radius: 12px;
-            background: #e6c280;
-            padding: 8px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+            background: #dfbc7a;
+            padding: 10px;
+            border: 3px solid #8c5d2b;
         }
         canvas {
             display: block;
-            background-color: #e6c280;
+            background-color: #f3dfb5;
             cursor: pointer;
-            border-radius: 6px;
+            border-radius: 8px;
         }
         #status {
-            margin-top: 8px;
+            margin-top: 10px;
             font-size: 15px;
             font-weight: bold;
             color: #444;
             height: 22px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <h2>Cờ Tướng iOS</h2>
+    <h2>Cờ Tướng iOS (3D Edition)</h2>
     
     <div class="controls">
         <label for="difficulty">Độ khó:</label>
@@ -121,12 +123,12 @@
         let selectedPiece = null;
         let gameOver = false;
 
-        const pieceNames = {
-            'T': 'T', 'S': 'S', 'V': 'V', 'X': 'X', 'P': 'P', 'M': 'M', 'C': 'C',
-            't': 'T', 's': 'S', 'v': 'V', 'x': 'X', 'p': 'P', 'm': 'M', 'c': 'B'
+        // Ký hiệu chữ Hán/Việt truyền thống kết hợp đồ họa đẹp mắt
+        const pieceDisplay = {
+            'T': '帥', 'S': '仕', 'V': '相', 'X': '車', 'P': '砲', 'M': '馬', 'C': '兵',
+            't': '將', 's': '士', 'v': '象', 'x': '車', 'p': '砲', 'm': '馬', 'c': '卒'
         };
 
-        // Điểm giá trị các quân cờ để AI tính toán
         const pieceValues = {
             'X': 100, 'x': 100,
             'P': 45, 'p': 45,
@@ -173,6 +175,14 @@
                 }
             }
 
+            // Sông (Sở Hà Hán Giới)
+            ctx.fillStyle = "#5a3d1d";
+            ctx.font = "bold 13px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("SỞ  HÀ", CELL_SIZE * 2.2, CELL_SIZE * 4.5);
+            ctx.fillText("HÁN  GIỚI", CELL_SIZE * 6.8, CELL_SIZE * 4.5);
+
             // Cung tướng
             ctx.beginPath();
             ctx.moveTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2);
@@ -188,34 +198,62 @@
             ctx.lineTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2 + 9 * CELL_SIZE);
             ctx.stroke();
 
-            // Vẽ quân cờ
+            // Vẽ các quân cờ phong cách 3D nổi
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     let p = board[r][c];
                     if (p !== '.') {
                         let x = CELL_SIZE / 2 + c * CELL_SIZE;
                         let y = CELL_SIZE / 2 + r * CELL_SIZE;
+                        let radius = CELL_SIZE / 2 - 3;
 
+                        // Hiệu ứng chọn quân
                         if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
                             ctx.beginPath();
-                            ctx.arc(x, y, CELL_SIZE / 2 - 2, 0, 2 * Math.PI);
-                            ctx.fillStyle = "#ffeb3b";
+                            ctx.arc(x, y + 1, radius + 2, 0, 2 * Math.PI);
+                            ctx.fillStyle = "#ffcc00";
                             ctx.fill();
                         }
 
+                        // Đổ bóng 3D cho quân cờ
                         ctx.beginPath();
-                        ctx.arc(x, y, CELL_SIZE / 2 - 4, 0, 2 * Math.PI);
-                        ctx.fillStyle = "#fdf5e6";
+                        ctx.arc(x, y + 2, radius, 0, 2 * Math.PI);
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
                         ctx.fill();
-                        ctx.strokeStyle = isRed(p) ? "#cc0000" : "#111111";
-                        ctx.lineWidth = 2;
+
+                        // Thân quân cờ (Hiệu ứng gradient nổi khối gỗ/ngà)
+                        let grad = ctx.createRadialGradient(x - 3, y - 3, 2, x, y, radius);
+                        if (isRed(p)) {
+                            grad.addColorStop(0, "#fff5f0");
+                            grad.addColorStop(1, "#f7dcd5");
+                        } else {
+                            grad.addColorStop(0, "#fffaeb");
+                            grad.addColorStop(1, "#ebdcb8");
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                        ctx.fillStyle = grad;
+                        ctx.fill();
+
+                        // Viền quân cờ
+                        ctx.strokeStyle = isRed(p) ? "#b22222" : "#2b2b2b";
+                        ctx.lineWidth = 2.5;
                         ctx.stroke();
 
-                        ctx.fillStyle = isRed(p) ? "#cc0000" : "#111111";
-                        ctx.font = "bold 17px sans-serif";
+                        // Viền kép bên trong tạo cảm giác chạm nổi
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius - 4, 0, 2 * Math.PI);
+                        ctx.strokeStyle = isRed(p) ? "#cc3333" : "#444444";
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+
+                        // Chữ trên quân cờ
+                        ctx.fillStyle = isRed(p) ? "#cc0000" : "#1a1a1a";
+                        ctx.font = "bold 20px serif";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "middle";
-                        ctx.fillText(pieceNames[p] || p, x, y);
+                        ctx.fillText(pieceDisplay[p] || p, x, y + 1);
                     }
                 }
             }
@@ -331,7 +369,6 @@
             }
         });
 
-        // AI xử lý các cấp độ
         function aiMove() {
             if (gameOver) return;
             let level = difficultySelect.value;
@@ -346,27 +383,22 @@
             let bestMove = null;
 
             if (level === 'easy') {
-                // Sơ cấp: Chọn ngẫu nhiên nước đi hợp lệ
                 bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
             } 
             else if (level === 'medium') {
-                // Trung cấp: Ưu tiên ăn quân có giá trị cao nhất
                 allMoves.sort((a, b) => b.score - a.score);
                 let topMoves = allMoves.filter(m => m.score === allMoves[0].score);
                 bestMove = topMoves[Math.floor(Math.random() * topMoves.length)];
             } 
             else if (level === 'hard') {
-                // Cao cấp: Duyệt trước 1 lớp nước đi để tìm cách ăn tối ưu và hạn chế mất quân
                 let maxEval = -99999;
                 for (let move of allMoves) {
-                    // Giả lập đi thử
                     let target = board[move.r2][move.c2];
                     board[move.r2][move.c2] = board[move.r1][move.c1];
                     board[move.r1][move.c1] = '.';
 
                     let evalScore = evaluateBoard();
 
-                    // Hoàn tác
                     board[move.r1][move.c1] = board[move.r2][move.c2];
                     board[move.r2][move.c2] = target;
 
