@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cờ Tướng iOS</title>
-    <!-- Cấu hình để chạy như App độc lập trên iOS -->
+    <title>Cờ Tướng iOS - Đấu với Máy</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Cờ Tướng">
-    
     <style>
         * {
             box-sizing: border-box;
@@ -20,122 +18,439 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
         }
         h2 {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #333;
-            font-size: 20px;
+            font-size: 18px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        select, button {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        select {
+            background-color: #fff;
+        }
+        button {
+            background-color: #b22222;
+            color: white;
+            border: none;
+        }
+        button:active {
+            background-color: #8b0000;
         }
         #game-container {
             position: relative;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
             border-radius: 12px;
-            overflow: hidden;
-            background-color: #e6b87d;
+            background: #e6c280;
+            padding: 8px;
         }
         canvas {
             display: block;
+            background-color: #e6c280;
+            cursor: pointer;
+            border-radius: 6px;
         }
-        .status {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
+        #status {
+            margin-top: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #444;
+            height: 22px;
         }
     </style>
 </head>
 <body>
 
-    <h2>CỜ TƯỚNG DI ĐỘNG</h2>
-    <div id="game-container">
-        <canvas id="chessBoard" width="360" height="400"></canvas>
+    <h2>Cờ Tướng iOS</h2>
+    
+    <div class="controls">
+        <label for="difficulty">Độ khó:</label>
+        <select id="difficulty">
+            <option value="easy">1. Sơ cấp (Dễ)</option>
+            <option value="medium" selected>2. Trung cấp (Vừa)</option>
+            <option value="hard">3. Cao cấp (Khó)</option>
+        </select>
+        <button onclick="resetGame()">Ván mới</button>
     </div>
-    <div class="status" id="statusText">Lượt đi: Quân Đỏ</div>
+
+    <div id="game-container">
+        <canvas id="board" width="360" height="400"></canvas>
+    </div>
+    <div id="status">Đến lượt bạn (Đỏ)</div>
 
     <script>
-        const canvas = document.getElementById("chessBoard");
+        const canvas = document.getElementById("board");
         const ctx = canvas.getContext("2d");
+        const statusDiv = document.getElementById("status");
+        const difficultySelect = document.getElementById("difficulty");
 
-        // Kích thước bàn cờ trên mobile
-        const CELL_SIZE = 38;
-        const OFFSET_X = 22;
-        const OFFSET_Y = 25;
+        const COLS = 9;
+        const ROWS = 10;
+        const CELL_SIZE = 40;
+
+        let board = [
+            ['x', 'm', 'v', 's', 't', 's', 'v', 'm', 'x'],
+            ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', 'p', '.', '.', '.', '.', '.', 'p', '.'],
+            ['c', '.', 'c', '.', 'c', '.', 'c', '.', 'c'],
+            ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+            ['C', '.', 'C', '.', 'C', '.', 'C', '.', 'C'],
+            ['.', 'P', '.', '.', '.', '.', '.', 'P', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+            ['X', 'M', 'V', 'S', 'T', 'S', 'V', 'M', 'X']
+        ];
+
+        let turn = 'red';
+        let selectedPiece = null;
+        let gameOver = false;
+
+        const pieceNames = {
+            'T': 'T', 'S': 'S', 'V': 'V', 'X': 'X', 'P': 'P', 'M': 'M', 'C': 'C',
+            't': 'T', 's': 'S', 'v': 'V', 'x': 'X', 'p': 'P', 'm': 'M', 'c': 'B'
+        };
+
+        // Điểm giá trị các quân cờ để AI tính toán
+        const pieceValues = {
+            'X': 100, 'x': 100,
+            'P': 45, 'p': 45,
+            'M': 40, 'm': 40,
+            'V': 20, 'v': 20,
+            'S': 20, 's': 20,
+            'C': 10, 'c': 10,
+            'T': 1000, 't': 1000
+        };
+
+        function isRed(piece) { return piece >= 'A' && piece <= 'Z'; }
+        function isBlack(piece) { return piece >= 'a' && piece <= 'z'; }
 
         function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#e6b87d";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.strokeStyle = "#4a2810";
+            // Vẽ lưới bàn cờ
+            ctx.strokeStyle = "#5a3d1d";
             ctx.lineWidth = 1.5;
 
-            // Vẽ 10 đường ngang
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < ROWS; i++) {
                 ctx.beginPath();
-                ctx.moveTo(OFFSET_X, OFFSET_Y + i * CELL_SIZE);
-                ctx.lineTo(OFFSET_X + 8 * CELL_SIZE, OFFSET_Y + i * CELL_SIZE);
+                ctx.moveTo(CELL_SIZE / 2, CELL_SIZE / 2 + i * CELL_SIZE);
+                ctx.lineTo(CELL_SIZE / 2 + (COLS - 1) * CELL_SIZE, CELL_SIZE / 2 + i * CELL_SIZE);
                 ctx.stroke();
             }
 
-            // Vẽ 9 đường dọc
-            for (let j = 0; j < 9; j++) {
-                ctx.beginPath();
-                if (j === 0 || j === 8) {
-                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y);
-                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+            for (let j = 0; j < COLS; j++) {
+                if (j === 0 || j === COLS - 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2);
+                    ctx.lineTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2 + (ROWS - 1) * CELL_SIZE);
+                    ctx.stroke();
                 } else {
-                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y);
-                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 4 * CELL_SIZE);
-                    ctx.moveTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 5 * CELL_SIZE);
-                    ctx.lineTo(OFFSET_X + j * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+                    ctx.beginPath();
+                    ctx.moveTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2);
+                    ctx.lineTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2 + 4 * CELL_SIZE);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2 + 5 * CELL_SIZE);
+                    ctx.lineTo(CELL_SIZE / 2 + j * CELL_SIZE, CELL_SIZE / 2 + 9 * CELL_SIZE);
+                    ctx.stroke();
                 }
-                ctx.stroke();
             }
 
-            // Kẻ sông (Sở Hà - Hán Giới)
-            ctx.font = "bold 16px Arial";
-            ctx.fillStyle = "#4a2810";
-            ctx.textAlign = "center";
-            ctx.fillText("SỞ HÀ", OFFSET_X + 2 * CELL_SIZE, OFFSET_Y + 4.65 * CELL_SIZE);
-            ctx.fillText("HÁN GIỚI", OFFSET_X + 6 * CELL_SIZE, OFFSET_Y + 4.65 * CELL_SIZE);
-
-            // Vẽ Cung Tướng (Chéo)
-            // Cung trên (Đen)
+            // Cung tướng
             ctx.beginPath();
-            ctx.moveTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y);
-            ctx.lineTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 2 * CELL_SIZE);
-            ctx.moveTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y);
-            ctx.lineTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 2 * CELL_SIZE);
-            // Cung dưới (Đỏ)
-            ctx.moveTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 7 * CELL_SIZE);
-            ctx.lineTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
-            ctx.moveTo(OFFSET_X + 5 * CELL_SIZE, OFFSET_Y + 7 * CELL_SIZE);
-            ctx.lineTo(OFFSET_X + 3 * CELL_SIZE, OFFSET_Y + 9 * CELL_SIZE);
+            ctx.moveTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2);
+            ctx.lineTo(CELL_SIZE / 2 + 5 * CELL_SIZE, CELL_SIZE / 2 + 2 * CELL_SIZE);
+            ctx.moveTo(CELL_SIZE / 2 + 5 * CELL_SIZE, CELL_SIZE / 2);
+            ctx.lineTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2 + 2 * CELL_SIZE);
             ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2 + 7 * CELL_SIZE);
+            ctx.lineTo(CELL_SIZE / 2 + 5 * CELL_SIZE, CELL_SIZE / 2 + 9 * CELL_SIZE);
+            ctx.moveTo(CELL_SIZE / 2 + 5 * CELL_SIZE, CELL_SIZE / 2 + 7 * CELL_SIZE);
+            ctx.lineTo(CELL_SIZE / 2 + 3 * CELL_SIZE, CELL_SIZE / 2 + 9 * CELL_SIZE);
+            ctx.stroke();
+
+            // Vẽ quân cờ
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let p = board[r][c];
+                    if (p !== '.') {
+                        let x = CELL_SIZE / 2 + c * CELL_SIZE;
+                        let y = CELL_SIZE / 2 + r * CELL_SIZE;
+
+                        if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
+                            ctx.beginPath();
+                            ctx.arc(x, y, CELL_SIZE / 2 - 2, 0, 2 * Math.PI);
+                            ctx.fillStyle = "#ffeb3b";
+                            ctx.fill();
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(x, y, CELL_SIZE / 2 - 4, 0, 2 * Math.PI);
+                        ctx.fillStyle = "#fdf5e6";
+                        ctx.fill();
+                        ctx.strokeStyle = isRed(p) ? "#cc0000" : "#111111";
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+
+                        ctx.fillStyle = isRed(p) ? "#cc0000" : "#111111";
+                        ctx.font = "bold 17px sans-serif";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(pieceNames[p] || p, x, y);
+                    }
+                }
+            }
+        }
+
+        function isValidMove(r1, c1, r2, c2, piece) {
+            if (r1 === r2 && c1 === c2) return false;
+            let target = board[r2][c2];
+            if (isRed(piece) && isRed(target)) return false;
+            if (isBlack(piece) && isBlack(target)) return false;
+
+            let dr = r2 - r1;
+            let dc = c2 - c1;
+
+            switch (piece.toUpperCase()) {
+                case 'T':
+                    if (c2 < 3 || c2 > 5) return false;
+                    if (isRed(piece) && (r2 < 7 || r2 > 9)) return false;
+                    if (isBlack(piece) && (r2 < 0 || r2 > 2)) return false;
+                    return (Math.abs(dr) + Math.abs(dc) === 1);
+                case 'S':
+                    if (c2 < 3 || c2 > 5) return false;
+                    if (isRed(piece) && (r2 < 7 || r2 > 9)) return false;
+                    if (isBlack(piece) && (r2 < 0 || r2 > 2)) return false;
+                    return (Math.abs(dr) === 1 && Math.abs(dc) === 1);
+                case 'V':
+                    if (isRed(piece) && r2 < 5) return false;
+                    if (isBlack(piece) && r2 > 4) return false;
+                    if (Math.abs(dr) === 2 && Math.abs(dc) === 2) {
+                        return board[(r1 + r2) / 2][(c1 + c2) / 2] === '.';
+                    }
+                    return false;
+                case 'M':
+                    if ((Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2)) {
+                        let legR = Math.abs(dr) === 2 ? r1 + dr / 2 : r1;
+                        let legC = Math.abs(dc) === 2 ? c1 + dc / 2 : c1;
+                        return board[legR][legC] === '.';
+                    }
+                    return false;
+                case 'X':
+                    if (dr !== 0 && dc !== 0) return false;
+                    let countX = 0;
+                    if (dr === 0) {
+                        for (let c = Math.min(c1, c2) + 1; c < Math.max(c1, c2); c++) if (board[r1][c] !== '.') countX++;
+                    } else {
+                        for (let r = Math.min(r1, r2) + 1; r < Math.max(r1, r2); r++) if (board[r][c1] !== '.') countX++;
+                    }
+                    return countX === 0;
+                case 'P':
+                    if (dr !== 0 && dc !== 0) return false;
+                    let countP = 0;
+                    if (dr === 0) {
+                        for (let c = Math.min(c1, c2) + 1; c < Math.max(c1, c2); c++) if (board[r1][c] !== '.') countP++;
+                    } else {
+                        for (let r = Math.min(r1, r2) + 1; r < Math.max(r1, r2); r++) if (board[r][c1] !== '.') countP++;
+                    }
+                    return target === '.' ? countP === 0 : countP === 1;
+                case 'C':
+                    if (isRed(piece)) {
+                        return r1 > 4 ? (dr === -1 && dc === 0) : ((dr === -1 && dc === 0) || (dr === 0 && Math.abs(dc) === 1));
+                    } else {
+                        return r1 < 5 ? (dr === 1 && dc === 0) : ((dr === 1 && dc === 0) || (dr === 0 && Math.abs(dc) === 1));
+                    }
+            }
+            return false;
+        }
+
+        canvas.addEventListener("click", (e) => {
+            if (gameOver || turn !== 'red') return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const c = Math.round((x - CELL_SIZE / 2) / CELL_SIZE);
+            const r = Math.round((y - CELL_SIZE / 2) / CELL_SIZE);
+
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                let clickedPiece = board[r][c];
+
+                if (selectedPiece === null) {
+                    if (clickedPiece !== '.' && isRed(clickedPiece)) {
+                        selectedPiece = { r, c };
+                        drawBoard();
+                    }
+                } else {
+                    if (selectedPiece.r === r && selectedPiece.c === c) {
+                        selectedPiece = null;
+                        drawBoard();
+                    } else if (clickedPiece !== '.' && isRed(clickedPiece)) {
+                        selectedPiece = { r, c };
+                        drawBoard();
+                    } else {
+                        let sourcePiece = board[selectedPiece.r][selectedPiece.c];
+                        if (isValidMove(selectedPiece.r, selectedPiece.c, r, c, sourcePiece)) {
+                            if (board[r][c] === 't') {
+                                gameOver = true;
+                                statusDiv.innerText = "Chúc mừng! Bạn đã thắng!";
+                            }
+                            board[r][c] = sourcePiece;
+                            board[selectedPiece.r][selectedPiece.c] = '.';
+                            selectedPiece = null;
+                            drawBoard();
+
+                            if (!gameOver) {
+                                turn = 'black';
+                                statusDiv.innerText = "Máy đang suy nghĩ...";
+                                setTimeout(aiMove, 300);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // AI xử lý các cấp độ
+        function aiMove() {
+            if (gameOver) return;
+            let level = difficultySelect.value;
+            let allMoves = getAllValidMoves('black');
+
+            if (allMoves.length === 0) {
+                gameOver = true;
+                statusDiv.innerText = "Bạn đã thắng! Máy hết nước đi.";
+                return;
+            }
+
+            let bestMove = null;
+
+            if (level === 'easy') {
+                // Sơ cấp: Chọn ngẫu nhiên nước đi hợp lệ
+                bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+            } 
+            else if (level === 'medium') {
+                // Trung cấp: Ưu tiên ăn quân có giá trị cao nhất
+                allMoves.sort((a, b) => b.score - a.score);
+                let topMoves = allMoves.filter(m => m.score === allMoves[0].score);
+                bestMove = topMoves[Math.floor(Math.random() * topMoves.length)];
+            } 
+            else if (level === 'hard') {
+                // Cao cấp: Duyệt trước 1 lớp nước đi để tìm cách ăn tối ưu và hạn chế mất quân
+                let maxEval = -99999;
+                for (let move of allMoves) {
+                    // Giả lập đi thử
+                    let target = board[move.r2][move.c2];
+                    board[move.r2][move.c2] = board[move.r1][move.c1];
+                    board[move.r1][move.c1] = '.';
+
+                    let evalScore = evaluateBoard();
+
+                    // Hoàn tác
+                    board[move.r1][move.c1] = board[move.r2][move.c2];
+                    board[move.r2][move.c2] = target;
+
+                    if (evalScore > maxEval) {
+                        maxEval = evalScore;
+                        bestMove = move;
+                    }
+                }
+                if (!bestMove) bestMove = allMoves[0];
+            }
+
+            let target = board[bestMove.r2][bestMove.c2];
+            if (target === 'T') {
+                gameOver = true;
+                statusDiv.innerText = "Máy đã thắng! Thử lại nhé.";
+            }
+
+            board[bestMove.r2][bestMove.c2] = board[bestMove.r1][bestMove.c1];
+            board[bestMove.r1][bestMove.c1] = '.';
+            drawBoard();
+
+            if (!gameOver) {
+                turn = 'red';
+                statusDiv.innerText = "Đến lượt bạn (Đỏ)";
+            }
+        }
+
+        function getAllValidMoves(color) {
+            let moves = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let p = board[r][c];
+                    if ((color === 'black' && isBlack(p)) || (color === 'red' && isRed(p))) {
+                        for (let tr = 0; tr < ROWS; tr++) {
+                            for (let tc = 0; tc < COLS; tc++) {
+                                if (isValidMove(r, c, tr, tc, p)) {
+                                    let target = board[tr][tc];
+                                    let score = target !== '.' ? (pieceValues[target] || 10) : 0;
+                                    moves.push({ r1: r, c1: c, r2: tr, c2: tc, score: score });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function evaluateBoard() {
+            let score = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let p = board[r][c];
+                    if (p !== '.') {
+                        let val = pieceValues[p] || 0;
+                        if (isBlack(p)) score += val;
+                        else score -= val;
+                    }
+                }
+            }
+            return score;
+        }
+
+        function resetGame() {
+            board = [
+                ['x', 'm', 'v', 's', 't', 's', 'v', 'm', 'x'],
+                ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+                ['.', 'p', '.', '.', '.', '.', '.', 'p', '.'],
+                ['c', '.', 'c', '.', 'c', '.', 'c', '.', 'c'],
+                ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+                ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+                ['C', '.', 'C', '.', 'C', '.', 'C', '.', 'C'],
+                ['.', 'P', '.', '.', '.', '.', '.', 'P', '.'],
+                ['.', '.', '.', '.', '.', '.', '.', '.', '.'],
+                ['X', 'M', 'V', 'S', 'T', 'S', 'V', 'M', 'X']
+            ];
+            turn = 'red';
+            selectedPiece = null;
+            gameOver = false;
+            statusDiv.innerText = "Đến lượt bạn (Đỏ)";
+            drawBoard();
         }
 
         drawBoard();
-
-        // Xử lý sự kiện chạm màn hình trên iOS
-        canvas.addEventListener("touchstart", function(e) {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            const x = touch.clientX - rect.left;
-            const y = touch.clientY - rect.top;
-
-            // Chuyển tọa độ chạm sang ô bàn cờ (0-8 cột, 0-9 hàng)
-            let col = Math.round((x - OFFSET_X) / CELL_SIZE);
-            let row = Math.round((y - OFFSET_Y) / CELL_SIZE);
-
-            if (col >= 0 && col <= 8 && row >= 0 && row <= 9) {
-                document.getElementById("statusText").innerText = `Đã chọn ô: Cột ${col + 1}, Hàng ${row + 1}`;
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>
